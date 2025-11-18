@@ -2,6 +2,7 @@ using FeedbackService.Application.DTOs;
 using FeedbackService.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace FeedbackService.Controllers;
 
@@ -11,10 +12,12 @@ namespace FeedbackService.Controllers;
 public class StationReviewsController : ControllerBase
 {
     private readonly IStationReviewService _service;
+    private readonly IDriverRepository _driverRepository;
 
-    public StationReviewsController(IStationReviewService service)
+    public StationReviewsController(IStationReviewService service, IDriverRepository driverRepository)
     {
         _service = service;
+        _driverRepository = driverRepository;
     }
 
     [HttpGet]
@@ -22,10 +25,15 @@ public class StationReviewsController : ControllerBase
     {
         try
         {
-            var driverId = Guid.Parse(User.FindFirst("driverId")?.Value
-                ?? throw new UnauthorizedAccessException("Driver ID not found in token"));
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? User.FindFirst("sub")?.Value
+                ?? throw new UnauthorizedAccessException("User ID not found in token"));
 
-            var reviews = await _service.GetMyReviewsAsync(driverId);
+            var driver = await _driverRepository.GetByUserIdAsync(userId);
+            if (driver == null)
+                return StatusCode(403, new { message = "Driver profile not found" });
+
+            var reviews = await _service.GetMyReviewsAsync(driver.DriverId);
             return Ok(reviews);
         }
         catch (UnauthorizedAccessException ex)
@@ -43,10 +51,15 @@ public class StationReviewsController : ControllerBase
     {
         try
         {
-            var driverId = Guid.Parse(User.FindFirst("driverId")?.Value
-                ?? throw new UnauthorizedAccessException("Driver ID not found in token"));
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? User.FindFirst("sub")?.Value
+                ?? throw new UnauthorizedAccessException("User ID not found in token"));
 
-            var review = await _service.GetByIdAsync(id, driverId);
+            var driver = await _driverRepository.GetByUserIdAsync(userId);
+            if (driver == null)
+                return StatusCode(403, new { message = "Driver profile not found" });
+
+            var review = await _service.GetByIdAsync(id, driver.DriverId);
             if (review == null)
                 return NotFound(new { message = "Review not found or access denied" });
 
@@ -70,10 +83,15 @@ public class StationReviewsController : ControllerBase
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var driverId = Guid.Parse(User.FindFirst("driverId")?.Value
-                ?? throw new UnauthorizedAccessException("Driver ID not found in token"));
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? User.FindFirst("sub")?.Value
+                ?? throw new UnauthorizedAccessException("User ID not found in token"));
 
-            var review = await _service.CreateAsync(dto, driverId);
+            var driver = await _driverRepository.GetByUserIdAsync(userId);
+            if (driver == null)
+                return StatusCode(403, new { message = "Driver profile not found" });
+
+            var review = await _service.CreateAsync(dto, driver.DriverId);
             return CreatedAtAction(nameof(GetById), new { id = review.ReviewId }, review);
         }
         catch (UnauthorizedAccessException ex)
@@ -98,10 +116,15 @@ public class StationReviewsController : ControllerBase
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var driverId = Guid.Parse(User.FindFirst("driverId")?.Value
-                ?? throw new UnauthorizedAccessException("Driver ID not found in token"));
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? User.FindFirst("sub")?.Value
+                ?? throw new UnauthorizedAccessException("User ID not found in token"));
 
-            var review = await _service.UpdateAsync(id, dto, driverId);
+            var driver = await _driverRepository.GetByUserIdAsync(userId);
+            if (driver == null)
+                return StatusCode(403, new { message = "Driver profile not found" });
+
+            var review = await _service.UpdateAsync(id, dto, driver.DriverId);
             if (review == null)
                 return NotFound(new { message = "Review not found or access denied" });
 
@@ -126,10 +149,15 @@ public class StationReviewsController : ControllerBase
     {
         try
         {
-            var driverId = Guid.Parse(User.FindFirst("driverId")?.Value
-                ?? throw new UnauthorizedAccessException("Driver ID not found in token"));
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? User.FindFirst("sub")?.Value
+                ?? throw new UnauthorizedAccessException("User ID not found in token"));
 
-            var result = await _service.DeleteAsync(id, driverId);
+            var driver = await _driverRepository.GetByUserIdAsync(userId);
+            if (driver == null)
+                return StatusCode(403, new { message = "Driver profile not found" });
+
+            var result = await _service.DeleteAsync(id, driver.DriverId);
             if (!result)
                 return NotFound(new { message = "Review not found or access denied" });
 

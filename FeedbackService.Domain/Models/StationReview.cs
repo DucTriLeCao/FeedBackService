@@ -28,4 +28,8 @@ public partial class StationReview
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
+
+    public virtual Driver Driver { get; set; }
+
+    public virtual Swap Swap { get; set; }
 }

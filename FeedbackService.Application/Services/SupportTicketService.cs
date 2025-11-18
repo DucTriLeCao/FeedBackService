@@ -7,10 +7,12 @@ namespace FeedbackService.Application.Services;
 public class SupportTicketService : ISupportTicketService
 {
     private readonly ISupportTicketRepository _repository;
+    private readonly ISwapRepository _swapRepository;
 
-    public SupportTicketService(ISupportTicketRepository repository)
+    public SupportTicketService(ISupportTicketRepository repository, ISwapRepository swapRepository)
     {
         _repository = repository;
+        _swapRepository = swapRepository;
     }
 
     public async Task<SupportTicketResponseDto> GetByIdAsync(Guid ticketId, Guid driverId)
@@ -30,6 +32,13 @@ public class SupportTicketService : ISupportTicketService
 
     public async Task<SupportTicketResponseDto> CreateAsync(CreateSupportTicketDto dto, Guid driverId)
     {
+        if (dto.SwapId.HasValue)
+        {
+            var isOwned = await _swapRepository.IsSwapOwnedByDriverAsync(dto.SwapId.Value, driverId);
+            if (!isOwned)
+                throw new UnauthorizedAccessException("SwapId does not belong to this driver");
+        }
+
         var ticket = new SupportTicket
         {
             TicketId = Guid.NewGuid(),

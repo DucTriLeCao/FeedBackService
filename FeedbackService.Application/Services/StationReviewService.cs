@@ -7,10 +7,12 @@ namespace FeedbackService.Application.Services;
 public class StationReviewService : IStationReviewService
 {
     private readonly IStationReviewRepository _repository;
+    private readonly ISwapRepository _swapRepository;
 
-    public StationReviewService(IStationReviewRepository repository)
+    public StationReviewService(IStationReviewRepository repository, ISwapRepository swapRepository)
     {
         _repository = repository;
+        _swapRepository = swapRepository;
     }
 
     public async Task<StationReviewResponseDto> GetByIdAsync(Guid reviewId, Guid driverId)
@@ -40,6 +42,13 @@ public class StationReviewService : IStationReviewService
         ValidateOptionalRating(dto.ServiceSpeedRating);
         ValidateOptionalRating(dto.StaffRating);
         ValidateOptionalRating(dto.FacilityRating);
+
+        if (dto.SwapId.HasValue)
+        {
+            var isOwned = await _swapRepository.IsSwapOwnedByDriverAsync(dto.SwapId.Value, driverId);
+            if (!isOwned)
+                throw new UnauthorizedAccessException("SwapId does not belong to this driver");
+        }
 
         var review = new StationReview
         {

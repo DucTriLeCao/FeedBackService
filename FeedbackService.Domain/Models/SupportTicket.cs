@@ -34,4 +34,8 @@ public partial class SupportTicket
     public DateTime UpdatedAt { get; set; }
 
     public DateTime? ResolvedAt { get; set; }
+
+    public virtual Driver Driver { get; set; }
+
+    public virtual Swap Swap { get; set; }
 }

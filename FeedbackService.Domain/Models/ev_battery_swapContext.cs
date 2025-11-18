@@ -9,19 +9,18 @@ namespace FeedbackService.Domain.Models;
 
 public partial class ev_battery_swapContext : DbContext
 {
-    public ev_battery_swapContext()
-    {
-    }
-
     public ev_battery_swapContext(DbContextOptions<ev_battery_swapContext> options)
         : base(options)
     {
     }
 
+    public virtual DbSet<Driver> Drivers { get; set; }
+
     public virtual DbSet<StationReview> StationReviews { get; set; }
 
     public virtual DbSet<SupportTicket> SupportTickets { get; set; }
 
+    public virtual DbSet<Swap> Swaps { get; set; }
     public static string GetConnectionString(string connectionStringName)
     {
         var config = new ConfigurationBuilder()
@@ -37,6 +36,33 @@ public partial class ev_battery_swapContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Driver>(entity =>
+        {
+            entity.HasKey(e => e.DriverId).HasName("pk_drivers");
+
+            entity.ToTable("drivers");
+
+            entity.HasIndex(e => e.UserId, "UQ__drivers__B9BE370EBF93FBE9").IsUnique();
+
+            entity.HasIndex(e => new { e.SubscriptionPlanId, e.SubscriptionStatus }, "ix_drivers_subscription");
+
+            entity.Property(e => e.DriverId)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("driver_id");
+            entity.Property(e => e.DriverLicense)
+                .HasMaxLength(50)
+                .HasColumnName("driver_license");
+            entity.Property(e => e.LoyaltyPoints).HasColumnName("loyalty_points");
+            entity.Property(e => e.SubscriptionEndDate).HasColumnName("subscription_end_date");
+            entity.Property(e => e.SubscriptionPlanId).HasColumnName("subscription_plan_id");
+            entity.Property(e => e.SubscriptionStartDate).HasColumnName("subscription_start_date");
+            entity.Property(e => e.SubscriptionStatus)
+                .HasMaxLength(20)
+                .HasColumnName("subscription_status");
+            entity.Property(e => e.TotalSwaps).HasColumnName("total_swaps");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+        });
+
         modelBuilder.Entity<StationReview>(entity =>
         {
             entity.HasKey(e => e.ReviewId).HasName("pk_station_reviews");
@@ -66,6 +92,16 @@ public partial class ev_battery_swapContext : DbContext
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("updated_at");
+
+            entity.HasOne(d => d.Driver).WithMany(p => p.StationReviews)
+                .HasForeignKey(d => d.DriverId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_station_reviews_drivers");
+
+            entity.HasOne(d => d.Swap).WithMany(p => p.StationReviews)
+                .HasForeignKey(d => d.SwapId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_station_reviews_swaps");
         });
 
         modelBuilder.Entity<SupportTicket>(entity =>
@@ -123,6 +159,64 @@ public partial class ev_battery_swapContext : DbContext
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("updated_at");
+
+            entity.HasOne(d => d.Driver).WithMany(p => p.SupportTickets)
+                .HasForeignKey(d => d.DriverId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_support_tickets_drivers");
+
+            entity.HasOne(d => d.Swap).WithMany(p => p.SupportTickets)
+                .HasForeignKey(d => d.SwapId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_support_tickets_swaps");
+        });
+
+        modelBuilder.Entity<Swap>(entity =>
+        {
+            entity.HasKey(e => e.SwapId).HasName("pk_swaps");
+
+            entity.ToTable("swaps");
+
+            entity.HasIndex(e => e.DriverId, "ix_swaps_driver");
+
+            entity.HasIndex(e => e.StationId, "ix_swaps_station");
+
+            entity.HasIndex(e => e.Status, "ix_swaps_status");
+
+            entity.HasIndex(e => e.SwapStartTime, "ix_swaps_swap_time");
+
+            entity.Property(e => e.SwapId)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("swap_id");
+            entity.Property(e => e.BatteryInChargeLevel).HasColumnName("battery_in_charge_level");
+            entity.Property(e => e.BatteryInId).HasColumnName("battery_in_id");
+            entity.Property(e => e.BatteryOutChargeLevel).HasColumnName("battery_out_charge_level");
+            entity.Property(e => e.BatteryOutId).HasColumnName("battery_out_id");
+            entity.Property(e => e.BookingId).HasColumnName("booking_id");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.DriverId).HasColumnName("driver_id");
+            entity.Property(e => e.DurationMinutes).HasColumnName("duration_minutes");
+            entity.Property(e => e.Notes).HasColumnName("notes");
+            entity.Property(e => e.OdometerReading).HasColumnName("odometer_reading");
+            entity.Property(e => e.StaffId).HasColumnName("staff_id");
+            entity.Property(e => e.StationId).HasColumnName("station_id");
+            entity.Property(e => e.Status)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue("in_progress")
+                .HasColumnName("status");
+            entity.Property(e => e.SwapEndTime).HasColumnName("swap_end_time");
+            entity.Property(e => e.SwapStartTime)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("swap_start_time");
+            entity.Property(e => e.VehicleId).HasColumnName("vehicle_id");
+
+            entity.HasOne(d => d.Driver).WithMany(p => p.Swaps)
+                .HasForeignKey(d => d.DriverId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_swaps_drivers");
         });
 
         OnModelCreatingPartial(modelBuilder);
